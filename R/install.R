@@ -189,11 +189,15 @@ install_deps <- function(pkgdir = ".", dependencies = NA,
                          build_opts = c("--no-resave-data", "--no-manual", "--no-build-vignettes"),
                          build_manual = FALSE, build_vignettes = FALSE,
                          ...) {
+
+  browser()
+
   packages <- dev_package_deps(
     pkgdir,
     repos = repos,
     dependencies = dependencies,
-    type = type
+    type = type,
+    check_upgrade = resolve_upgrade(upgrade) != "never"
   )
 
   dep_deps <- if (isTRUE(dependencies)) NA else dependencies

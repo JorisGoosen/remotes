@@ -122,7 +122,8 @@ local_package_deps <- function(pkgdir = ".", dependencies = NA) {
 
 dev_package_deps <- function(pkgdir = ".", dependencies = NA,
                              repos = getOption("repos"),
-                             type = getOption("pkgType")) {
+                             type = getOption("pkgType"),
+                             check_upgrade = TRUE) {
 
   pkg <- load_pkg_description(pkgdir)
   repos <- c(repos, parse_additional_repositories(pkg))
@@ -140,9 +141,9 @@ dev_package_deps <- function(pkgdir = ".", dependencies = NA,
 
   cran_deps <- package_deps(deps, repos = repos, type = type)
 
-  res <- combine_remote_deps(cran_deps, extra_deps(pkg, "remotes"))
+  res <- combine_remote_deps(cran_deps, extra_deps(pkg, "remotes", check_upgrade))
 
-  res <- do.call(rbind, c(list(res), lapply(get_extra_deps(pkg, dependencies), extra_deps, pkg = pkg), stringsAsFactors = FALSE))
+  res <- do.call(rbind, c(list(res), lapply(get_extra_deps(pkg, dependencies), extra_deps, pkg = pkg, check_upgrade = check_upgrade), stringsAsFactors = FALSE))
 
   res[!duplicated(res$package, fromLast = TRUE), ]
 }
@@ -567,19 +568,23 @@ package_deps_new <- function(package = character(), installed = character(),
   res
 }
 
-extra_deps <- function(pkg, field) {
+extra_deps <- function(pkg, field, check_upgrade) {
   if (!has_extra_deps(pkg, field)) {
     return(package_deps_new())
   }
   dev_packages <- split_extra_deps(pkg[[field]])
   extra <- lapply(dev_packages, parse_one_extra)
 
-  package <- vapply(extra, function(x) remote_package_name(x), character(1), USE.NAMES = FALSE)
+  browser()
+
+  package   <- vapply(extra, function(x) remote_package_name(x), character(1), USE.NAMES = FALSE)
   installed <- vapply(package, function(x) local_sha(x), character(1), USE.NAMES = FALSE)
-  available <- vapply(extra, function(x) remote_sha(x), character(1), USE.NAMES = FALSE)
+  available <- vapply(extra, function(x) if(check_upgrade) remote_sha(x) else local_sha(x), character(1), USE.NAMES = FALSE)
+ 
   diff <- installed == available
   diff <- ifelse(!is.na(diff) & diff, CURRENT, BEHIND)
   diff[is.na(installed)] <- UNINSTALLED
+
   is_cran_remote <- vapply(extra, inherits, logical(1), "cran_remote")
 
   package_deps_new(package, installed, available, diff, is_cran = is_cran_remote, extra)
